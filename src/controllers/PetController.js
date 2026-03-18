@@ -34,11 +34,25 @@ module.exports = {
   },
 
   async index(req, res) {
-    const pets = await connection('pets')
-      .where('status', 'available');
+  const pets = await connection('pets')
+    .where('status', 'available');
 
-    return res.json(pets);
-  },
+  const petsWithImages = await Promise.all(
+    pets.map(async (pet) => {
+
+      const images = await connection('pet_images')
+        .where('pet_id', pet.id)
+        .select('image');
+
+      return {
+        ...pet,
+        images: images.map(img => `/uploads/${img.image}`)
+      };
+    })
+  );
+
+  return res.json(petsWithImages);
+},
 
   async update(req, res) {
   const organization_id = req.shelterId;
@@ -90,7 +104,21 @@ async myPets(req, res) {
   const pets = await connection('pets')
     .where('organization_id', organization_id);
 
-  return res.json(pets);
+  const petsWithImages = await Promise.all(
+    pets.map(async (pet) => {
+
+      const images = await connection('pet_images')
+        .where('pet_id', pet.id)
+        .select('image');
+
+      return {
+        ...pet,
+        images: images.map(img => `/uploads/${img.image}`)
+      };
+    })
+  );
+
+  return res.json(petsWithImages);
 },
 
 async adopt(req, res) {
