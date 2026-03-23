@@ -13,5 +13,6 @@ routes.get('/mine', authMiddleware, PetController.myPets);
 routes.put('/:id', authMiddleware, PetController.update);
 routes.patch('/:id/adopt', authMiddleware, PetController.adopt)
 routes.post('/:id/images', authMiddleware, upload.array('images', 5), PetController.uploadImages);
+routes.delete('/images/:id', authMiddleware, PetController.deleteImage);
 
 module.exports = routes;

@@ -1,9 +1,11 @@
 const connection = require('../database/connection');
+const fs = require('fs');
+const path = require('path');
 
 module.exports = {
 
   async create(req, res) {
-  const organization_id = req.shelterId;
+  const organizationId  = req.organizationId;
 
   const {
     name,
@@ -26,7 +28,7 @@ module.exports = {
       description,
       city,
       state,
-      organization_id
+      organization_id: organizationId 
     })
     .returning('*');
 
@@ -34,28 +36,48 @@ module.exports = {
   },
 
   async index(req, res) {
-  const pets = await connection('pets')
-    .where('status', 'available');
 
-  const petsWithImages = await Promise.all(
-    pets.map(async (pet) => {
+  const rows = await connection('pets')
+    .leftJoin('pet_images', 'pets.id', 'pet_images.pet_id')
+    .where('pets.status', 'available')
+    .select(
+      'pets.*',
+      'pet_images.image'
+    );
 
-      const images = await connection('pet_images')
-        .where('pet_id', pet.id)
-        .select('image');
+  const petsMap = {};
 
-      return {
-        ...pet,
-        images: images.map(img => `/uploads/${img.image}`)
+  rows.forEach(row => {
+
+    if (!petsMap[row.id]) {
+      petsMap[row.id] = {
+        id: row.id,
+        name: row.name,
+        species: row.species,
+        size: row.size,
+        gender: row.gender,
+        age_group: row.age_group,
+        description: row.description,
+        city: row.city,
+        state: row.state,
+        status: row.status,
+        images: []
       };
-    })
-  );
+    }
 
-  return res.json(petsWithImages);
+    if (row.image) {
+      petsMap[row.id].images.push(`/uploads/${row.image}`);
+    }
+
+  });
+
+  const pets = Object.values(petsMap);
+
+  return res.json(pets);
 },
 
   async update(req, res) {
-  const organization_id = req.shelterId;
+  const organizationId = req.organizationId;
   const { id } = req.params;
 
   const pet = await connection('pets')
@@ -67,7 +89,7 @@ module.exports = {
   }
 
   // Verificando se o pet pertence à ONG logada
-  if (pet.organization_id !== organization_id) {
+  if (pet.organization_id !== organizationId) {
     return res.status(403).json({ error: 'Não autorizado.' });
   }
 
@@ -99,30 +121,50 @@ module.exports = {
 },
 
 async myPets(req, res) {
-  const organization_id = req.shelterId;
+  const organizationId = req.organizationId;
 
-  const pets = await connection('pets')
-    .where('organization_id', organization_id);
+  const rows = await connection('pets')
+    .leftJoin('pet_images', 'pets.id', 'pet_images.pet_id')
+    .where('pets.organization_id', organizationId)
+    .select(
+      'pets.*',
+      'pet_images.image'
+    );
 
-  const petsWithImages = await Promise.all(
-    pets.map(async (pet) => {
+  const petsMap = {};
 
-      const images = await connection('pet_images')
-        .where('pet_id', pet.id)
-        .select('image');
+  rows.forEach(row => {
 
-      return {
-        ...pet,
-        images: images.map(img => `/uploads/${img.image}`)
+    if (!petsMap[row.id]) {
+      petsMap[row.id] = {
+        id: row.id,
+        name: row.name,
+        species: row.species,
+        size: row.size,
+        gender: row.gender,
+        age_group: row.age_group,
+        description: row.description,
+        city: row.city,
+        state: row.state,
+        status: row.status,
+        organization_id: row.organization_id,
+        images: []
       };
-    })
-  );
+    }
 
-  return res.json(petsWithImages);
+    if (row.image) {
+      petsMap[row.id].images.push(`/uploads/${row.image}`);
+    }
+
+  });
+
+  const pets = Object.values(petsMap);
+
+  return res.json(pets);
 },
 
 async adopt(req, res) {
-  const organization_id = req.shelterId;
+  const organizationId = req.organizationId;
   const { id } = req.params;
 
   const pet = await connection('pets')
@@ -133,7 +175,7 @@ async adopt(req, res) {
     return res.status(404).json({ error: 'Pet não encontrado.' });
   }
 
-  if (pet.organization_id !== organization_id) {
+  if (pet.organization_id !== organizationId) {
     return res.status(403).json({ error: 'Não autorizado.' });
   }
 
@@ -147,7 +189,7 @@ async adopt(req, res) {
 }, 
 
 async uploadImages(req, res) {
-  const organization_id = req.shelterId;
+  const organizationId = req.organizationId;
   const { id } = req.params;
 
   const pet = await connection('pets')
@@ -158,7 +200,7 @@ async uploadImages(req, res) {
     return res.status(404).json({ error: 'Pet não encontrado.' });
   }
 
-  if (pet.organization_id !== organization_id) {
+  if (pet.organization_id !== organizationId) {
     return res.status(403).json({ error: 'Não autorizado.' });
   }
 
@@ -178,6 +220,48 @@ async uploadImages(req, res) {
   return res.json({
     message: 'Imagens enviadas com sucesso!'
   });
+},
+
+async deleteImage(req, res) {
+
+  const organizationId = req.organizationId;
+  const { id } = req.params;
+
+  const image = await connection('pet_images')
+    .where('id', id)
+    .first();
+
+  if (!image) {
+    return res.status(404).json({ error: 'Imagem não encontrada.' });
+  }
+
+  const pet = await connection('pets')
+    .where('id', image.pet_id)
+    .first();
+
+  if (pet.organization_id !== organizationId) {
+    return res.status(403).json({ error: 'Não autorizado.' });
+  }
+
+  await connection('pet_images')
+    .where('id', id)
+    .delete();
+
+  const filePath = path.resolve(
+    __dirname,
+    '..',
+    '..',
+    'uploads',
+    image.image
+  );
+
+  fs.unlink(filePath, (err) => {
+    if (err) {
+      console.error('Erro ao deletar arquivo:', err);
+    }
+  });
+
+  return res.json({ message: 'Imagem deletada com sucesso!' });
 }
 
 };
