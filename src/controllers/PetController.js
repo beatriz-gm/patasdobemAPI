@@ -36,44 +36,54 @@ module.exports = {
   },
 
   async index(req, res) {
+  const { page = 1, limit = 10 } = req.query;
 
-  const rows = await connection('pets')
-    .leftJoin('pet_images', 'pets.id', 'pet_images.pet_id')
-    .where('pets.status', 'available')
-    .select(
-      'pets.*',
-      'pet_images.image'
-    );
+  const currentPage = Number(page);
+  const perPage = Number(limit);
 
-  const petsMap = {};
+  const offset = (currentPage - 1) * perPage;
 
-  rows.forEach(row => {
+  const [{ count }] = await connection('pets')
+    .where('status', 'available')
+    .count();
 
-    if (!petsMap[row.id]) {
-      petsMap[row.id] = {
-        id: row.id,
-        name: row.name,
-        species: row.species,
-        size: row.size,
-        gender: row.gender,
-        age_group: row.age_group,
-        description: row.description,
-        city: row.city,
-        state: row.state,
-        status: row.status,
-        images: []
-      };
+  const pets = await connection('pets')
+    .where('status', 'available')
+    .limit(perPage)
+    .offset(offset)
+    .orderBy('created_at', 'desc');
+
+  const petIds = pets.map(pet => pet.id);
+
+  const images = await connection('pet_images')
+    .whereIn('pet_id', petIds)
+    .select('pet_id', 'image');
+
+  const imagesMap = {};
+
+  images.forEach(img => {
+    if (!imagesMap[img.pet_id]) {
+      imagesMap[img.pet_id] = [];
     }
 
-    if (row.image) {
-      petsMap[row.id].images.push(`/uploads/${row.image}`);
-    }
-
+    imagesMap[img.pet_id].push(`/uploads/${img.image}`);
   });
 
-  const pets = Object.values(petsMap);
+  const petsWithImages = pets.map(pet => ({
+    ...pet,
+    images: imagesMap[pet.id] || []
+  }));
 
-  return res.json(pets);
+  return res.json({
+    success: true,
+    data: petsWithImages,
+    pagination: {
+      page: currentPage,
+      limit: perPage,
+      total: Number(count),
+      hasMore: offset + pets.length < Number(count)
+    }
+  });
 },
 
   async update(req, res) {
@@ -88,7 +98,6 @@ module.exports = {
     return res.status(404).json({ error: 'Pet não encontrado.' });
   }
 
-  // Verificando se o pet pertence à ONG logada
   if (pet.organization_id !== organizationId) {
     return res.status(403).json({ error: 'Não autorizado.' });
   }
@@ -122,45 +131,54 @@ module.exports = {
 
 async myPets(req, res) {
   const organizationId = req.organizationId;
+  const { page = 1, limit = 10 } = req.query;
 
-  const rows = await connection('pets')
-    .leftJoin('pet_images', 'pets.id', 'pet_images.pet_id')
-    .where('pets.organization_id', organizationId)
-    .select(
-      'pets.*',
-      'pet_images.image'
-    );
+  const currentPage = Number(page);
+  const perPage = Number(limit);
 
-  const petsMap = {};
+  const offset = (currentPage - 1) * perPage;
 
-  rows.forEach(row => {
+  const [{ count }] = await connection('pets')
+    .where('organization_id', organizationId)
+    .count();
 
-    if (!petsMap[row.id]) {
-      petsMap[row.id] = {
-        id: row.id,
-        name: row.name,
-        species: row.species,
-        size: row.size,
-        gender: row.gender,
-        age_group: row.age_group,
-        description: row.description,
-        city: row.city,
-        state: row.state,
-        status: row.status,
-        organization_id: row.organization_id,
-        images: []
-      };
+  const pets = await connection('pets')
+    .where('organization_id', organizationId)
+    .limit(perPage)
+    .offset(offset)
+    .orderBy('created_at', 'desc');
+
+  const petIds = pets.map(pet => pet.id);
+
+  const images = await connection('pet_images')
+    .whereIn('pet_id', petIds)
+    .select('pet_id', 'image');
+
+  const imagesMap = {};
+
+  images.forEach(img => {
+    if (!imagesMap[img.pet_id]) {
+      imagesMap[img.pet_id] = [];
     }
 
-    if (row.image) {
-      petsMap[row.id].images.push(`/uploads/${row.image}`);
-    }
-
+    imagesMap[img.pet_id].push(`/uploads/${img.image}`);
   });
 
-  const pets = Object.values(petsMap);
+  const petsWithImages = pets.map(pet => ({
+    ...pet,
+    images: imagesMap[pet.id] || []
+  }));
 
-  return res.json(pets);
+  return res.json({
+    success: true,
+    data: petsWithImages,
+    pagination: {
+      page: currentPage,
+      limit: perPage,
+      total: Number(count),
+      hasMore: offset + pets.length < Number(count)
+    }
+  });
 },
 
 async adopt(req, res) {
