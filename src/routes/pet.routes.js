@@ -10,9 +10,11 @@ const upload = multer(uploadConfig);
 routes.post('/', authMiddleware, PetController.create);
 routes.get('/', PetController.index);
 routes.get('/mine', authMiddleware, PetController.myPets);
+routes.get('/:id', PetController.show);
 routes.put('/:id', authMiddleware, PetController.update);
+routes.delete('/:id', authMiddleware, PetController.delete);
 routes.patch('/:id/adopt', authMiddleware, PetController.adopt)
 routes.post('/:id/images', authMiddleware, upload.array('images', 5), PetController.uploadImages);
-routes.delete('/images/:id', authMiddleware, PetController.deleteImage);
+routes.delete('/:petId/images/:imageId', authMiddleware, PetController.deleteImage);
 
 module.exports = routes;
