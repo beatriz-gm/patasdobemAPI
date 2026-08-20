@@ -8,13 +8,15 @@ module.exports = {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const [id] = await connection('admins').insert({
-      name,
-      email,
-      password: hashedPassword
-    });
+    const [admin] = await connection('admins')
+      .insert({
+        name,
+        email,
+        password: hashedPassword
+      })
+      .returning('id');
 
-    return res.json({ id });
+    return res.json({ id: admin.id });
   },
 
   async index(req, res) {

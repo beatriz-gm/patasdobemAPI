@@ -1,9 +1,21 @@
 exports.up = function(knex) {
   return knex.schema.createTable('pet_images', function(table) {
+
     table.increments('id').primary();
-    table.integer('pet_id').references('id').inTable('pets').onDelete('CASCADE');
-    table.text('image').notNullable();
-    table.timestamp('created_at').defaultTo(knex.fn.now());
+
+    table
+      .integer('pet_id')
+      .unsigned()
+      .notNullable()
+      .references('id')
+      .inTable('pets')
+      .onDelete('CASCADE');
+
+    table.text('image_url').notNullable();
+
+    table.boolean('is_primary').defaultTo(false);
+
+    table.timestamps(true, true);
   });
 };
 

@@ -7,26 +7,28 @@ module.exports = {
     const {
       name,
       type,
+      description,
       city,
       state,
       phone,
-      instagram,
+      social_links,
       email,
-      password
+      password_hash
     } = req.body;
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await bcrypt.hash(password_hash, 10);
 
   const [organization] = await connection('organizations')
   .insert({
     name,
     type,
+    description,
     city,
     state,
     phone,
-    instagram,
+    social_links,
     email,
-    password: hashedPassword,
+    password_hash: hashedPassword,
     status: 'pending'
   })
   .returning('id');

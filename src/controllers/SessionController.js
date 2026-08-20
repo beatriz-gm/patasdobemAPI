@@ -22,7 +22,7 @@ module.exports = {
     }
 
     const token = jwt.sign(
-      { id: organization.id, role: 'admin' },
+      { id: admin.id, role: 'admin' },
       process.env.JWT_SECRET,
       { expiresIn: process.env.JWT_EXPIRES_IN }
     );
@@ -45,7 +45,7 @@ module.exports = {
       return res.status(403).json({ error: 'Conta ainda não aprovada.' });
     }
 
-    const passwordMatch = await bcrypt.compare(password, organization.password);
+    const passwordMatch = await bcrypt.compare(password, organization.password_hash);
 
     if (!passwordMatch) {
       return res.status(400).json({ error: 'Usuário ou senha inválida' });

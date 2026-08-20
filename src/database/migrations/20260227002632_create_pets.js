@@ -1,39 +1,47 @@
 exports.up = function (knex) {
   return knex.schema.createTable('pets', function (table) {
+
     table.increments('id').primary();
-    table.string('name');
-    table.enu('species', ['Cachorro', 'Gato'])
+
+    table
+      .integer('organization_id')
+      .unsigned()
+      .notNullable()
+      .references('id')
+      .inTable('organizations')
+      .onDelete('CASCADE');
+
+    table.string('name').notNullable();
+
+    table.enu('species', ['Dog', 'Cat'])
       .notNullable();
 
-    table.enu('size', ['Pequeno', 'Médio', 'Grande'])
+    table.enu('size', ['Small', 'Medium', 'Large'])
       .notNullable();
 
-    table.enu('gender', ['Macho', 'Fêmea'])
+    table.enu('gender', ['Male', 'Female'])
       .notNullable();
 
     table.enu('age_group', [
-      'Filhote (<1 ano)',
-      'Jovem (1-4 anos)',
-      'Adulto (5-9 anos)',
-      'Idoso (10+ anos)'
+      'Kitten (<1 year)',
+      'Young (1-4 years)',
+      'Adult (5-9 years)',
+      'Senior (10+ years)'
     ]).notNullable();
 
     table.text('description').notNullable();
 
     table.string('city').notNullable();
-    table.string('state', 2).notNullable();
 
-    table.enu('status', ['available', 'adopted'])
-      .defaultTo('available');
+    table.string('state', 2).notNullable(); // MG, SP, RJ...
 
-    table
-      .integer('organization_id')
-      .unsigned()
-      .references('id')
-      .inTable('organizations')
-      .onDelete('CASCADE');
+    table.enu('status', [
+      'available',
+      'in_process',
+      'adopted'
+    ]).defaultTo('available');
 
-    table.timestamp('created_at').defaultTo(knex.fn.now());
+    table.timestamps(true, true);
   });
 };
 
